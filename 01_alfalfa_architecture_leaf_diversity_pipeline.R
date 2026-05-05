@@ -40,6 +40,12 @@ if(length(missing_cols) > 0) {
 clean_df <- raw_df %>%
   mutate(across(c(Plant_Height, MF_Total, starts_with("Freq_")), as.numeric)) %>%
   filter(!is.na(Plant_Height) & !is.na(MF_Total))
+# New: Standardize Chinese into Academic English
+mutate(MF_Pattern = case_when(
+  MF_Pattern == "无主导型" ~ "Wild_Type",
+  is.na(MF_Pattern) | MF_Pattern == "" ~ "Unclassified",
+  TRUE ~ MF_Pattern
+))
 
 if(!"MF_Pattern" %in% colnames(clean_df)) clean_df$MF_Pattern <- "Unclassified"
 clean_df$MF_Pattern[is.na(clean_df$MF_Pattern) | clean_df$MF_Pattern == ""] <- "Unclassified"
