@@ -1,8 +1,9 @@
 # ==============================================================================
 # Project: Multidimensional Analysis Pipeline for Compound Leaf Morphogenesis and Plant Architecture Variation in Alfalfa (Medicago sativa)
-# Version: V1.0 (Defensive Programming & Publication-Ready Edition)
-# Framework: Tidyverse-based automated cleaning -> composite diversity quantification -> publication-grade figure output (Fig 1–4)
-# Features: Full English label harmonization, dynamic unit detection, SE-safe computation, Cairo_PDF fallback mechanism
+# Version: V2.0 (Defensive Programming & Publication-Ready Edition)
+# Framework: Tidyverse automated cleaning -> composite diversity quantification -> publication-grade figure output (Fig 1–4)
+# Features: Full English label harmonization, dynamic unit detection, SE-safe computation, Cairo_PDF fallback mechanism,
+#           **NEW: Overlay of raw data distribution (jitter) and automated export of figure-specific Source Data**
 # ==============================================================================
 
 suppressPackageStartupMessages({
@@ -12,7 +13,7 @@ suppressPackageStartupMessages({
   library(patchwork)
 })
 
-# --- 1. Automated output environment setup ---
+# ------ 1. Automated output environment setup ------ 
 current_time <- format(Sys.time(), "%Y%m%d_%H%M%S")
 out_dir <- paste0("Architecture_LeafPattern_Results_", current_time)
 if(!dir.exists(out_dir)) dir.create(out_dir)
@@ -29,7 +30,7 @@ safe_ggsave <- function(plot, filename, width, height) {
   })
 }
 
-# --- 2. Data import and defensive column validation ---
+# ------ 2. Data import and defensive column validation ------ 
 file_path <- "RawData_20260501.csv"
 if(!file.exists(file_path)) stop("FATAL ERROR: Input file not found: ", file_path)
 
@@ -42,23 +43,22 @@ required_cols <- c("Family", "ID", "Plant_Height", "MF_Total",
 missing_cols <- setdiff(required_cols, colnames(raw_df))
 if(length(missing_cols) > 0) stop("FATAL ERROR: Missing required columns -> ", paste(missing_cols, collapse = ", "))
 
-# Backfill missing pattern column if absent
+# Backfill pattern column if missing
 if(!"MF_Pattern" %in% colnames(raw_df)) raw_df$MF_Pattern <- "Unclassified"
 
-# --- 3. Basic cleaning and invalid character detection ---
-# Warning interception: detect implicit NA generated during numeric coercion
+# ------ 3. Basic cleaning and invalid character detection ------ 
 clean_df <- raw_df %>%
   mutate(across(c(Plant_Height, MF_Total, starts_with("Freq_")), ~ as.numeric(.x))) 
 
 freq_cols <- c("Freq_Sym_Term", "Freq_Sym_Lat", "Freq_Asym_Single", "Freq_Asym_Lobed", "Freq_Asym_Irreg")
 
-# Check for failed coercion
+# Detect failed numeric coercion
 failed_parse <- purrr::map_lgl(freq_cols, ~ any(is.na(clean_df[[.x]]) & !is.na(raw_df[[.x]])))
 if(any(failed_parse)) {
   stop("FATAL ERROR: Non-numeric values detected in Freq columns (e.g., commas or text). Please inspect raw data.")
 }
 
-# Remove fully invalid rows and standardize pattern labels to English
+# Remove invalid rows and harmonize labels to standardized English
 clean_df <- clean_df %>%
   filter(!is.na(Plant_Height) & !is.na(MF_Total)) %>%
   mutate(MF_Pattern = case_when(
@@ -72,7 +72,7 @@ clean_df <- clean_df %>%
     TRUE ~ MF_Pattern
   ))
 
-# --- 4. High-robustness dynamic unit inference (frequency vs. count) ---
+# ------ 4. High-robustness dynamic unit inference (frequency vs. count) ------ 
 clean_df <- clean_df %>% mutate(across(all_of(freq_cols), ~ .x, .names = "{.col}_Raw"))
 
 is_all_integers <- function(x) {
@@ -93,7 +93,7 @@ if (all(sapply(clean_df[freq_cols], is_all_integers))) {
   }
 }
 
-# --- 5. Composite developmental diversity indices (S, H, J) ---
+# ------ 5. Composite developmental diversity indices (S, H, J) ------ 
 calc_diversity_indices <- function(row_data) {
   counts <- as.numeric(row_data)
   counts[is.na(counts)] <- 0
@@ -115,7 +115,7 @@ final_df <- bind_cols(clean_df, div_results)
 write_csv(final_df, file.path(out_dir, "01_Cleaned_Data_with_Diversity.csv"))
 message(">>> [Output] Multidimensional phenotype matrix generated.")
 
-# --- 6. Statistical modeling and report generation (SE-safe computation) ---
+# ------ 6. Statistical modeling and report generation ------ 
 cor_p <- cor.test(final_df$Plant_Height, final_df$MF_Total, method = "pearson")
 cor_s <- cor.test(final_df$Plant_Height, final_df$MF_Total, method = "spearman", exact = FALSE)
 
@@ -125,7 +125,7 @@ write_csv(data.frame(
   Spearman_rho = round(cor_s$estimate, 4), P_Value_Spearman = signif(cor_s$p.value, 4)
 ), file.path(out_dir, "02_Architecture_MF_Correlation.csv"))
 
-# Pattern-level summary statistics (with SD NA-safe handling)
+# Retain descriptive statistics for reference
 pattern_plot_df <- final_df %>%
   group_by(MF_Pattern) %>%
   summarise(
@@ -143,14 +143,19 @@ pattern_plot_df <- final_df %>%
 write_csv(pattern_plot_df, file.path(out_dir, "03_Pattern_Descriptive_Stats.csv"))
 
 # ==============================================================================
-# --- 7. Publication-grade visualization (Figure 1–4) ---
+# ------ 7. Publication-grade visualization (Figure 1–4) — unified style upgrade ------ 
+#      · Colorblind-friendly: Viridis D palette / blue–orange dual encoding
+#      · Raw data overlay: semi-transparent gray jitter (Fig2, Fig3)
 # ==============================================================================
-message(">>> [Rendering] Generating high-resolution figures...")
+message(">>> [Rendering] Generating high-resolution figures and exporting Source Data...")
 
-# 🔷 Figure 1: Plant architecture vs. multi-foliate rate (individual-level scatter)
-p_fig1 <- ggplot(final_df, aes(x = Plant_Height, y = MF_Total)) +
-  geom_point(alpha = 0.6, size = 2, color = "#2C7BB6") +
-  geom_smooth(method = "lm", se = TRUE, color = "#D7191C", linewidth = 1) +
+# 🔷 Figure 1: Plant architecture vs. multi-foliate rate
+fig1_data <- final_df %>% select(ID, Family, Plant_Height, MF_Total)
+write_csv(fig1_data, file.path(out_dir, "SourceData_Fig1.csv"))
+
+p_fig1 <- ggplot(fig1_data, aes(x = Plant_Height, y = MF_Total)) +
+  geom_point(alpha = 0.6, size = 2, color = "#0072B2") +
+  geom_smooth(method = "lm", se = TRUE, color = "#D55E00", linewidth = 1) +
   labs(
     title = "Figure 1. Association between Plant Architecture and Multi-foliate Expression",
     subtitle = paste0("Pearson r = ", round(cor_p$estimate, 3), " (p = ", signif(cor_p$p.value, 3), "); ",
@@ -160,31 +165,44 @@ p_fig1 <- ggplot(final_df, aes(x = Plant_Height, y = MF_Total)) +
 
 safe_ggsave(p_fig1, "Fig1_Architecture_vs_MF_scatter.pdf", 7, 5)
 
-# 🔷 Figure 2: Pattern-wise phenotype means (with SE bars)
-p_fig2a <- ggplot(pattern_plot_df, aes(x = reorder(MF_Pattern, Mean_MF), y = Mean_MF, fill = MF_Pattern)) +
-  geom_col(alpha = 0.85) +
-  geom_errorbar(aes(ymin = Mean_MF - SE_MF, ymax = Mean_MF + SE_MF), width = 0.2, linewidth = 0.6) +
-  scale_fill_npg() +
-  labs(title = "Figure 2A. Multi-foliate Expression across Patterns", x = "Dominant Leaf Pattern", y = "Mean MF_Total ± SE") + 
+# 🔷 Figure 2: Pattern-wise means with raw data overlay
+fig2_data <- final_df %>% filter(MF_Pattern %in% pattern_plot_df$MF_Pattern)
+write_csv(fig2_data %>% select(ID, Family, MF_Pattern, MF_Total, Plant_Height), file.path(out_dir, "SourceData_Fig2.csv"))
+
+p_fig2a <- ggplot(fig2_data, aes(x = reorder(MF_Pattern, MF_Total, FUN = mean, na.rm = TRUE), 
+                                 y = MF_Total, fill = MF_Pattern)) +
+  stat_summary(fun = mean, geom = "col", alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.5, size = 1.5, color = "gray30") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.25, linewidth = 0.8) +
+  scale_fill_viridis_d(option = "D") +
+  labs(title = "Figure 2A. Multi-foliate Expression across Patterns", 
+       x = "Dominant Leaf Pattern", 
+       y = "MF_Total (Points: Raw Data, Bars: Mean ± SE)") + 
   theme_bw() + theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1))
 
-p_fig2b <- ggplot(pattern_plot_df, aes(x = reorder(MF_Pattern, Mean_Architecture), y = Mean_Architecture, fill = MF_Pattern)) +
-  geom_col(alpha = 0.85) +
-  geom_errorbar(aes(ymin = Mean_Architecture - SE_Architecture, ymax = Mean_Architecture + SE_Architecture), width = 0.2, linewidth = 0.6) +
-  scale_fill_npg() +
-  labs(title = "Figure 2B. Plant Architecture across Patterns", x = "Dominant Leaf Pattern", y = "Mean Height (cm) ± SE") + 
+p_fig2b <- ggplot(fig2_data, aes(x = reorder(MF_Pattern, Plant_Height, FUN = mean, na.rm = TRUE), 
+                                 y = Plant_Height, fill = MF_Pattern)) +
+  stat_summary(fun = mean, geom = "col", alpha = 0.7) +
+  geom_jitter(width = 0.2, alpha = 0.5, size = 1.5, color = "gray30") +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.25, linewidth = 0.8) +
+  scale_fill_viridis_d(option = "D") +
+  labs(title = "Figure 2B. Plant Architecture across Patterns", 
+       x = "Dominant Leaf Pattern", 
+       y = "Height (cm) (Points: Raw Data, Bars: Mean ± SE)") + 
   theme_bw() + theme(legend.position = "none", axis.text.x = element_text(angle = 45, hjust = 1))
 
-safe_ggsave(p_fig2a / p_fig2b, "Fig2_Pattern_Mean_Comparison.pdf", 8, 10)
+safe_ggsave(p_fig2a / p_fig2b, "Fig2_Pattern_Mean_with_RawData.pdf", 8, 10)
 
 # 🔷 Figure 3: Shannon diversity violin plot
 shannon_df <- final_df %>% filter(!is.na(Shannon_H), MF_Pattern != "Unclassified", MF_Pattern != "Wild-Type")
+write_csv(shannon_df %>% select(ID, Family, MF_Pattern, Shannon_H), file.path(out_dir, "SourceData_Fig3.csv"))
 
-p_fig3 <- ggplot(shannon_df, aes(x = reorder(MF_Pattern, Shannon_H, median, na.rm = TRUE), y = Shannon_H, fill = MF_Pattern)) +
+p_fig3 <- ggplot(shannon_df, aes(x = reorder(MF_Pattern, Shannon_H, median, na.rm = TRUE), 
+                                 y = Shannon_H, fill = MF_Pattern)) +
   geom_violin(trim = FALSE, alpha = 0.7, color = NA) +
   geom_boxplot(width = 0.15, outlier.shape = NA, fill = "white") +
-  geom_jitter(width = 0.15, size = 1.2, alpha = 0.4) +
-  scale_fill_npg() +
+  geom_jitter(width = 0.15, size = 1.2, alpha = 0.5, color = "gray30") +
+  scale_fill_viridis_d(option = "D") +
   labs(
     title = "Figure 3. Intra-plant Morphological Diversity (Shannon H')",
     subtitle = "Higher H' indicates elevated phenotypic plasticity / lower expressivity stability",
@@ -206,17 +224,18 @@ dropped_families <- sum(family_stats$Pop_Size < 3)
 message(sprintf(">>> [Filter] %d small families (n < 3) removed.", dropped_families))
 
 family_stats <- family_stats %>% filter(Pop_Size >= 3)
+write_csv(family_stats, file.path(out_dir, "SourceData_Fig4.csv"))
 
 p_fig4 <- ggplot(family_stats, aes(x = Mean_Arch, y = Mean_MF)) +
   geom_point(aes(size = Pop_Size, fill = Dominant_Pattern), alpha = 0.8, shape = 21, color = "black") +
-  scale_fill_npg() +
+  scale_fill_viridis_d(option = "D") +
   labs(
     title = "Figure 4. Genetic Segregation of Architecture and Multi-foliate Traits",
-    x = "Plant Architecture Index (Height component, cm)", y = "Mean Multi-foliate Rate",
+    x = "Plant Architecture Index (Mean Height, cm)", y = "Mean Multi-foliate Rate",
     size = "Family Size", fill = "Dominant Pattern"
   ) + theme_bw() + theme(text = element_text(size = 12))
 
 safe_ggsave(p_fig4, "Fig4_Family_Genetics_Plot.pdf", 9, 6)
 
-message(">>> [Complete] 🎯 Pipeline execution finished. All data and figures successfully archived.")
+message(">>> [Complete] 🎯 Pipeline execution finished. All figures and corresponding Source Data have been successfully archived.")
 # ==============================================================================
