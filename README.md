@@ -2,46 +2,56 @@
 
 ## Overview
 
-This repository provides a **publication-ready, defensive-programming R pipeline (v6.0)** for analyzing compound leaf morphogenesis and plant architecture variation in *Medicago sativa* (alfalfa).
+This repository provides a **publication-ready, defensive-programming R pipeline (v2.0)** for analyzing compound leaf morphogenesis and plant architecture variation in *Medicago sativa* (alfalfa).
+
+Compared to previous versions, **v2.0 explicitly targets journal reproducibility standards** by integrating **raw data transparency and visualization robustness**.
 
 The pipeline integrates:
 
 * Automated data cleaning and validation
 * Composite diversity index calculation (Richness S, Shannon H', Pielou J)
 * Correlation analysis (Pearson & Spearman)
-* Pattern-level statistical summaries with SE-safe computation
-* High-resolution, journal-quality visualization (Figure 1–4)
+* Pattern-level statistical summaries
+* Publication-grade visualization with raw data overlay
+* **Automatic export of figure-specific Source Data (NEW)**
 
 ---
 
 ## 🔧 Core Features
 
-* **Defensive Programming**
+### 1. Defensive Programming Framework
 
-  * Strict column validation
-  * Automatic detection of malformed numeric fields
-  * NA-safe statistical computation
+* Hard-stop validation of required columns
+* Detection of numeric coercion failures
+* Explicit error reporting for malformed input
 
-* **Dynamic Unit Inference**
+### 2. Dynamic Unit Inference
 
-  * Automatically distinguishes between:
+* Automatically distinguishes:
 
-    * Absolute counts
-    * Proportions (auto-converted to counts, N = 15)
+  * Absolute counts
+  * Proportions (auto-converted to counts, N = 15)
 
-* **Label Harmonization**
+### 3. Label Harmonization
 
-  * Chinese and mixed labels mapped to standardized English terms
+* Chinese / mixed labels mapped to standardized English ontology
 
-* **Robust Visualization System**
+### 4. Statistical Robustness
 
-  * Publication-grade ggplot2 figures
-  * Automatic `cairo_pdf` fallback mechanism
+* SE-safe computation (no NA propagation in small groups)
+* Dual correlation system (Pearson + Spearman)
 
-* **Reproducible Output Structure**
+### 5. Publication-Grade Visualization
 
-  * Timestamped result directory
-  * Fully traceable CSV outputs and figures
+* Colorblind-friendly palettes (Viridis, blue–orange)
+* Unified ggplot2 styling
+* **Raw data overlay (jitter) for transparency (NEW)**
+
+### 6. Reproducible Output System
+
+* Timestamped output directory
+* Structured outputs (CSV + PDF)
+* **Figure-level Source Data export (NEW)**
 
 ---
 
@@ -55,13 +65,13 @@ RawData_20260501.csv
 
 ### Required Columns
 
-| Column       | Description                              |
-| ------------ | ---------------------------------------- |
-| Family       | Family ID                                |
-| ID           | Individual plant ID                      |
-| Plant_Height | Plant height (cm)                        |
-| MF_Total     | Multi-foliate rate                       |
-| Freq_*       | Frequency or count of leaf pattern types |
+| Column       | Description                     |
+| ------------ | ------------------------------- |
+| Family       | Family ID                       |
+| ID           | Individual ID                   |
+| Plant_Height | Height (cm)                     |
+| MF_Total     | Multi-foliate rate              |
+| Freq_*       | Leaf pattern frequency or count |
 
 Required frequency columns:
 
@@ -73,92 +83,67 @@ Required frequency columns:
 
 Optional:
 
-* `MF_Pattern` (auto-filled if missing)
+* `MF_Pattern`
 
 ---
 
-## 🚀 Pipeline Workflow
+## 🚀 Workflow
 
-1. **Environment Initialization**
-
-   * Creates timestamped output directory
-
-2. **Data Validation**
-
-   * Ensures required columns exist
-   * Detects invalid numeric conversions
-
-3. **Data Cleaning**
-
-   * Removes invalid rows
-   * Standardizes categorical labels
-
-4. **Unit Detection**
-
-   * Identifies whether `Freq_*` are counts or proportions
-
-5. **Diversity Calculation**
-
-   * Computes:
-
-     * Richness (S)
-     * Shannon index (H')
-     * Pielou’s evenness (J)
-
-6. **Statistical Analysis**
-
-   * Pearson correlation
-   * Spearman correlation
-
-7. **Aggregation & Summary**
-
-   * Pattern-level mean, SD, SE
-   * Shannon index summary
-
-8. **Visualization Output**
+1. Environment initialization
+2. Data validation (strict schema enforcement)
+3. Cleaning + label harmonization
+4. Unit inference (count vs proportion)
+5. Diversity index computation (S, H', J)
+6. Correlation analysis
+7. Pattern-level aggregation
+8. Visualization + Source Data export
 
 ---
 
-## 📊 Output Files
+## 📊 Output Structure
 
 ### Data Tables
 
-| File                               | Description                            |
-| ---------------------------------- | -------------------------------------- |
-| 01_Cleaned_Data_with_Diversity.csv | Cleaned dataset with diversity indices |
-| 02_Architecture_MF_Correlation.csv | Correlation results                    |
-| 03_Pattern_Descriptive_Stats.csv   | Pattern-level summary statistics       |
+| File                               | Description                         |
+| ---------------------------------- | ----------------------------------- |
+| 01_Cleaned_Data_with_Diversity.csv | Full dataset with diversity indices |
+| 02_Architecture_MF_Correlation.csv | Correlation results                 |
+| 03_Pattern_Descriptive_Stats.csv   | Pattern-level summary               |
 
-### Figures
+### Figures + Source Data (NEW)
 
-| Figure | Description                                  |
-| ------ | -------------------------------------------- |
-| Fig1   | Architecture vs. MF scatter plot             |
-| Fig2   | Pattern-wise mean comparison (MF + Height)   |
-| Fig3   | Shannon diversity violin plot                |
-| Fig4   | Family-level genetic segregation bubble plot |
+| Figure | Output                       | Source Data         |
+| ------ | ---------------------------- | ------------------- |
+| Fig1   | Scatter (Architecture vs MF) | SourceData_Fig1.csv |
+| Fig2   | Pattern means + raw data     | SourceData_Fig2.csv |
+| Fig3   | Shannon violin               | SourceData_Fig3.csv |
+| Fig4   | Family bubble plot           | SourceData_Fig4.csv |
 
 ---
 
-## 📈 Figure Interpretation (Brief)
+## 📈 Key Design Philosophy (v7.0)
 
-* **Figure 1**: Quantifies the association between plant height and multi-foliate expression
-* **Figure 2**: Compares phenotypic means across dominant leaf patterns
-* **Figure 3**: Evaluates intra-plant morphological diversity (Shannon H')
-* **Figure 4**: Visualizes family-level genetic segregation structure
+* **Transparency-first visualization**
+  → Every summary plot is paired with raw data
+
+* **Reproducibility compliance**
+  → All figures have directly traceable Source Data
+
+* **Reviewer-oriented output**
+  → Figures meet typical journal statistical expectations
 
 ---
 
 ## ⚠️ Data Quality Safeguards
 
-* Stops execution if:
+Pipeline will **STOP** if:
 
-  * Required columns are missing
-  * Non-numeric values detected in frequency columns
+* Required columns are missing
+* Non-numeric values detected in frequency fields
 
-* Warns if:
+Pipeline will **WARN** if:
 
-  * Mixed unit types detected (potential contamination)
+* Mixed unit types detected
 
 ---
 
@@ -170,12 +155,3 @@ library(ggplot2)
 library(ggsci)
 library(patchwork)
 ```
-
----
-
-## 🧠 Recommended Use Cases
-
-* Alfalfa population phenotyping
-* Morphological diversity quantification
-* GWAS phenotype preprocessing
-* Reviewer-ready figure generation
