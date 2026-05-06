@@ -121,7 +121,7 @@ Optional:
 
 ---
 
-## 📈 Key Design Philosophy (v7.0)
+## 📈 Key Design Philosophy (v2.0)
 
 * **Transparency-first visualization**
   → Every summary plot is paired with raw data
