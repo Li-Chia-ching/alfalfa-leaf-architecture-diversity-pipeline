@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Li"
+  given-names: "Jiaqing"
+  orcid: "https://orcid.org/0000-0002-4856-5524"
+- family-names: "Lie"
+  given-names: "Huanwei"
+  orcid: "https://orcid.org/0009-0007-4062-5987"
+title: "alfalfa-leaf-architecture-diversity-pipeline"
+version: 1.0.0
+doi: 0.5281/zenodo.20050792
+date-released: 2026-05-06
+url: "https://github.com/Li-Chia-ching/alfalfa-leaf-architecture-diversity-pipeline"
